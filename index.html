@@ -1,0 +1,221 @@
+<!DOCTYPE html>      
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Streaming with Chat</title>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js"></script>
+    <style>
+        /* 🔥 Global Styles */
+        body {
+            font-family: 'Arial', sans-serif;
+            text-align: center;
+            background-color: #121212;
+            color: white;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 900px;
+            margin: auto;
+            background: #1e1e1e;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+        }
+        /* 🔥 Video Container */
+        .video-container {
+            position: relative;
+            width: 100%;
+            max-width: 100vw;
+            aspect-ratio: 16 / 9;
+            background: black;
+            overflow: hidden;
+        }
+        .video-container iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+        /* 🔥 Chat Box */
+        #chat-box {
+            width: 100%;
+            height: 250px;
+            overflow-y: scroll;
+            border: 1px solid #333;
+            padding: 10px;
+            text-align: left;
+            background: #222;
+            border-radius: 10px;
+        }
+        /* 🔥 Input & Buttons */
+        input, button {
+            width: calc(100% - 10px);
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 5px;
+            border: 1px solid #555;
+            background: #333;
+            color: white;
+        }
+        button {
+            background: #0277bd;
+            border: none;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        button:hover {
+            background: #01579b;
+        }
+        /* 🔥 Hide content initially */
+        #main-content {
+            display: none;
+        }
+        /* 🔥 Modal (Dialogue Box) */
+        #loginModal {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            background: rgba(0, 0, 0, 0.7);
+        }
+        .modal-content {
+            background: #1e1e1e;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+            text-align: center;
+            width: 300px;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+<!-- Admission Number Dialogue Box -->
+<div id="loginModal">
+    <div class="modal-content">
+        <h2>Enter Your Admission Number</h2>
+        <input type="text" id="admission-input" placeholder="Enter Admission Number">
+        <button onclick="checkAdmission()">Login</button>
+    </div>
+</div>
+
+<div id="main-content">
+    <center>
+        <img src="https://see.fontimg.com/api/rf5/4VwY/ZWY4NmZlYTQwMDg2NGIyNjliNGEyNDFiN2Q4N2I4NmYudHRm/QnJhaW5zdG9ybSBMaXZlIHN0cmVhbWluZyA/youth-touch-demo-regular.png?r=fs&h=88&w=2000&fg=D63D3D&bg=F9EFEF&tb=1&s=44" width="75%">
+    </center>
+    <div class="container">
+        <!-- Video Player -->
+        <div class="video-container">
+            <iframe src="https://www.youtube.com/embed/u6NAwJMBfio?si=feZzbYJy2mP1_xx0" allowfullscreen></iframe>
+        </div>
+
+        <!-- Ask Student's Name -->
+        <div id="name-section">
+            <h2>Enter Your Name</h2>
+            <input type="text" id="name-input" placeholder="Enter your name">
+            <button id="set-name-btn">Set Name</button>
+        </div>
+
+        <!-- Chat Section -->
+        <h2>Live Chat</h2>
+        <div id="chat-box"></div>
+        
+        <input type="text" id="message-input" placeholder="Type your message..." disabled>
+        <button id="send-btn" disabled>Send</button>
+    </div>
+</div>
+
+<script>
+    // List of valid admission numbers
+    const validAdmissions = ["961", "4044", "2525", "44556", "77889", "99001", "23456", "34567", "45678", "56789",
+                             "67891", "78912", "89023", "90134", "01245", "13456", "24567", "35678", "46789", "57890"];
+
+    function checkAdmission() {
+        const admissionInput = document.getElementById("admission-input").value.trim();
+        if (validAdmissions.includes(admissionInput)) {
+            document.getElementById("loginModal").style.display = "none";
+            document.getElementById("main-content").style.display = "block";
+        } else {
+            alert("Invalid Admission Number! Access Denied.");
+        }
+    }
+
+    let username = "";
+
+    // 📌 Set User's Name
+    document.getElementById("set-name-btn").addEventListener("click", () => {
+        const nameInput = document.getElementById("name-input").value.trim();
+        if (nameInput === "") {
+            alert("Please enter your name!");
+            return;
+        }
+        username = nameInput;
+        document.getElementById("name-section").classList.add("hidden"); // Hide name input section
+        document.getElementById("message-input").disabled = false;
+        document.getElementById("send-btn").disabled = false;
+    });
+
+</script>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
+    import { getDatabase, ref, push, onChildAdded, remove } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
+
+    // 🔥 Updated Firebase Configuration
+    const firebaseConfig = {
+        apiKey: "AIzaSyBH9V3wnR8Ij4ABJNORBIFw3t6mbVVhbYU",
+        authDomain: "brainstorm-classes-12th.firebaseapp.com",
+        projectId: "brainstorm-classes-12th",
+        storageBucket: "brainstorm-classes-12th.firebasestorage.app",
+        messagingSenderId: "1035720363163",
+        appId: "1:1035720363163:web:ce234e0e7527154ba94a3e",
+        measurementId: "G-4YGYBTXR77",
+        databaseURL: "https://brainstorm-classes-12th-default-rtdb.firebaseio.com/"
+    };
+
+    // ✅ Initialize Firebase with New Config
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const chatRef = ref(db, "live-chat");
+
+    // 📌 Send Message to Firebase
+    document.getElementById("send-btn").addEventListener("click", () => {
+        const messageInput = document.getElementById("message-input");
+        const message = messageInput.value.trim();
+        if (message !== "" && username !== "") {
+            push(chatRef, {
+                name: username,
+                text: message,
+                timestamp: Date.now()
+            }).then(() => {
+                messageInput.value = "";
+            }).catch(error => {
+                console.error("Error sending message:", error);
+            });
+        }
+    });
+
+    // 📌 Fetch Messages from Firebase in Real-Time
+    onChildAdded(chatRef, (snapshot) => {
+        const msg = snapshot.val();
+        const chatBox = document.getElementById("chat-box");
+        const messageElement = document.createElement("p");
+        messageElement.innerHTML = `<strong>${msg.name}:</strong> ${msg.text}`;
+        chatBox.appendChild(messageElement);
+        chatBox.scrollTop = chatBox.scrollHeight;
+    });
+
+</script>
+
+
+</body>
+</html>
